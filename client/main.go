@@ -134,7 +134,7 @@ func main() {
 	var opts []grpc.DialOption
 
 	if *tls {
-		creds, err := credentials.NewClientTLSFromFile("keys/ca.crt", *serverHostOverride)
+		creds, err := credentials.NewClientTLSFromFile("ca/ca.crt", *serverHostOverride)
 		if err != nil {
 			log.Fatalf("Failed to generate credentials %v", err)
 		}
