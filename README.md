@@ -133,6 +133,12 @@ go run client/main.go -server_addr="localhost:50054"
 相关证书文件。如果不使用tls，这个文件夹无用。
 文件夹的内容，也可以自己生成，参考：[useTls.md](useTls.md)
 
+## 3.3 运行 tls
+
+运行结果如下：
+
+![image-20250225171111809](assets/image-20250225171111809.png)
+
 # 3 可视化调试工具
 
 类似于http的调试工具postman一样，grpc也有可视化工具，见：https://github.com/fullstorydev/grpcui
