@@ -2,14 +2,14 @@
 
 使用openssl工具进行证书操作。
 
-#### 1. 修改openssl配置文件
+## 修改openssl配置文件
 
 ```bash
 #切换到home目录
 cd
 # 创建操作目录
 mkdir ca && cd ca
-# 拷贝配置文件到当前目录
+# 拷贝配置文件到当前目录，下面应该是 linux 的地址，如果你是 MacOS 系统，请继续看下面
 cp /etc/pki/tls/openssl.cnf .
 
 #创建空文件
@@ -17,14 +17,33 @@ touch /etc/pki/CA/index.txt
 #初始化serial文件
 echo 00 > /etc/pki/CA/serial
 ```
-修改配置文件
+如果你是 macOS 操作系统，那么要找到你的 openssl.cnf，方法如下：
+
+```shell
+[CheverJohn]% openssl version -d
+OPENSSLDIR: "/opt/homebrew/etc/openssl@3"
+[CheverJohn]% ls /opt/homebrew/etc/openssl@3
+cert.pem                 ct_log_list.cnf.dist     openssl.cnf.default      private
+certs                    misc                     openssl.cnf.dist
+ct_log_list.cnf          openssl.cnf              openssl.cnf.dist.default
+
+```
+
+然后再 拷贝配置文件到当前目录下，命令如下：
+
+```shell
+cp /opt/homebrew/etc/openssl@3/openssl.cnf .
+```
+
+## 修改配置文件
+
 ```bash
 vi openssl.cnf
 #为了方便，[ req_distinguished_name ]段落我修改或添加了一些内容
 countryName_default             = CN
-stateOrProvinceName_default     = GuangDong
-localityName_default            = GuangZhou
-0.organizationName_default      = dmai
+stateOrProvinceName_default     = JiangSu
+localityName_default            = NanJing
+0.organizationName_default      = Chever
 organizationalUnitName_default  = devops
 
 
@@ -51,7 +70,13 @@ Generating RSA private key, 4096 bit long modulus
 ........................................++
 e is 65537 (0x10001)
 ```
-当前目录生成ca.key文件
+当前目录生成ca.key文件。
+
+可复制命令：
+
+```shell
+openssl genrsa -out ca.key 4096
+```
 
 
 
@@ -80,6 +105,16 @@ Organizational Unit Name (eg, section) [devops]:
 Common Name (eg, your name or your server's hostname) []:ca_server
 Email Address []:
 ```
+
+可复制命令如下：
+
+```shell
+openssl req -new -x509 -days 36500 -key ca.key -out ca.crt -config openssl.cnf
+```
+
+
+
+
 
 #### 3. 签发证书
 
