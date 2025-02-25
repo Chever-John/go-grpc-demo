@@ -66,7 +66,7 @@ func (s *demoServer) SayHello(ctx context.Context, in *demo.HelloRequest) (*demo
 	return &demo.HelloReply{Message: message}, nil
 }
 
-// 实现方法GetStream
+// GetStream 实现方法GetStream
 func (s *demoServer) GetStream(in *demo.TwoNum, pipe demo.Demo_GetStreamServer) error {
 
 	err := pipe.Send(&demo.Response{Result: in.X + in.Y}) //返回和
