@@ -1,11 +1,15 @@
 # 使用私有 ca 证书进行 grpc tls 通信
 
-grpc如果使用tls通信，需要对证书进行相关操作，这里使用私有ca签署。
+**如果下载了这个项目准备复现的话，会出现问题，因为我 fork 的项目所使用的证书 `/keys` 已经失效了。所以你这边需要自己生成。**
 
-使用openssl工具进行证书操作。大致的过程分为以下几个部分：
+**当然你也可以使用我新创建的，时效为 `2025/02/25 ~ 2026/02/25` 的证书，需要将代码里所有 `keys/` 修改为 `ca/`。**
 
-1. 为了方便，首先魔改一下 `openssl.cnf` 文件。主要就是把一些默认信息改一下，并且添加我们的测试域名；
-2. 开始证书创建 CA 证书。
+grpc 如果使用 tls 通信，需要对证书进行相关操作，这里使用私有 ca 签署。
+
+使用 openssl 工具进行证书操作。大致的过程分为以下几个部分：
+
+1. [修改 openssl 配置文件](#修改 openssl 配置文件)，为了方便，首先魔改一下 `openssl.cnf` 文件。主要就是把一些默认信息改一下，并且添加我们的测试域名；
+2. [根证书相关操作](#根证书相关操作)，开始创建 CA 证书。
 
 ## 预先准备信息
 
@@ -91,24 +95,21 @@ OpenSSL_PATH: /opt/homebrew/etc/openssl@3
 >
 > 含义：
 >
-> - 第一列
->
->   : 包含状态信息：
->
->   - `V` 表示有效证书（Valid）。
+> - **第一列**：包含状态信息如下
+>  - `V` 表示有效证书（Valid）。
 >   - `R` 表示被吊销证书（Revoked）。
->   - `E` 表示过期证书（Expired）。
->
-> - **第二列**: 证书有效期到期时间。
->
-> - **第三列**: 证书序列号。
->
-> - **第四列**: 保留字段，通常为 `unknown`。
->
-> - **第五列及后续**: 证书的可区分名称（DN）。
->
+>  - `E` 表示过期证书（Expired）。
+>   
+> - **第二列**：证书有效期到期时间。
+> 
+>- **第三列**：证书序列号。
+> 
+>- **第四列**：保留字段，通常为 `unknown`。
+> 
+>- **第五列及后续**：证书的可区分名称（DN）。
+> 
 
-### 复制默认的 openssl.cnf 文件
+### 复制默认 `openssl.cnf` 文件
 
 从我们的全局变量中获取到我们 openssl.cnf 文件。
 
@@ -156,7 +157,7 @@ new_certs_dir	= $dir/newcerts		# default place for new certs.
 
 当然你可以自己修改。
 
-## 修改配置文件
+### 修改配置文件
 
 ```bash
 vi openssl.cnf
@@ -214,13 +215,13 @@ Generating RSA private key, 4096 bit long modulus
 ........................................++
 e is 65537 (0x10001)
 ```
-当前目录生成ca.key文件。可复制命令：
+当前目录生成 ca.key 文件。可复制命令：
 
 ```shell
 openssl genrsa -out ca.key 4096
 ```
 
-如果要加密码，需要加选项--aes256
+如果要加密码，需要加选项 `--aes256`，命令如下：
 
 ```bash
 openssl genrsa  -out ca.key 4096 --aes256
@@ -234,7 +235,7 @@ openssl genrsa  -out ca.key 4096 --aes256
 openssl req -new -x509 -days 36500 -key ca.key -out ca.crt -config openssl.cnf
 ```
 
-使用上一步的私钥ca.key，自签证书ca.crt，有效期100年。
+使用上一步的私钥 ca.key，自签证书 ca.crt，有效期100年。
 
 命令效果如下：
 
@@ -268,7 +269,7 @@ Generating RSA private key, 4096 bit long modulus
 ...........................................++
 e is 65537 (0x10001)
 ```
-这一步将生产 server.key 文件，下面会用到
+这一步将生产 `server.key` 文件，下面会用到。
 
 
 #### 生成证书签发请求
@@ -294,32 +295,19 @@ to be sent with your certificate request
 A challenge password []:
 An optional company name []:
 ```
-这一步将生产server.csr文件，下面会用到
+这一步将生产 `server.csr` 文件，下面会用到。
 
 #### 签发证书
 
-利用ca.crt、server.key、server.csr，生成服务端证书
+利用 `ca.crt`、`server.key`、`server.csr`，生成服务端证书。
 
-需要创建文件夹，之后才能够运行下面命令。创建文件夹命令如下：
+运行下面命令签发证书：
 
 ```shell
-# 创建 demoCA 文件夹及子文件夹
-mkdir -p demoCA/certs
-mkdir -p demoCA/crl
-mkdir -p demoCA/newcerts
-mkdir -p demoCA/private
-
-# 初始化数据库文件 index.txt
-touch demoCA/index.txt
-
-# 创建序列号文件并初始化值为 01
-echo 01 > demoCA/serial
-
-# 设置权限保护私钥目录
-chmod 700 demoCA/private
+openssl ca -in server.csr -out server.crt -cert ca.crt -keyfile ca.key -extensions v3_req -config openssl.cnf
 ```
 
-然后运行下面命令签发证书：
+命令效果如下：
 
 ```bash
 # openssl ca -in server.csr -out server.crt -cert ca.crt -keyfile ca.key -extensions v3_req -config openssl.cnf
@@ -352,9 +340,16 @@ Sign the certificate? [y/n]:y
 Write out database with 1 new entries
 Data Base Updated
 ```
-这一步生产server.crt证书文件.
+这一步生产 server.crt 证书文件.
 
-查看证书内容,注意证书中的"DNS:*.grpc.test.com, DNS:dfe.example.org, DNS:ex.abcexpale."，这是grpc客户端校验的关键
+查看证书内容,注意证书中的 "DNS:*.grpc.test.com, DNS:dfe.example.org, DNS:ex.abcexpale."，这是grpc客户端校验的关键。校验命令如下：
+
+```shell
+openssl x509 -noout -text  -in server.crt
+```
+
+命令效果如下：
+
 ```bash
 # openssl x509 -noout -text  -in server.crt 
 Certificate:
@@ -456,7 +451,9 @@ Certificate:
 
 ------
 
-### server.crt (服务端证书)
+### server.crt (服务
+
+### 端证书)
 
 - 作用：
   - 服务端的证书文件，是由 CA 签名的服务器公钥证书，包含了服务器的域名和认证信息。
