@@ -4,11 +4,11 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	demo "github.com/Chever-John/go-grpc-demo/data"
 	"io"
 	"log"
 	"net"
-
-	demo "github.com/Chever-John/go-grpc-demo/data"
+	"time"
 
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/reflection"
@@ -21,21 +21,41 @@ type demoServer struct {
 	savedResults []*demo.Response //用于服务端流
 }
 
-// 实现方法Add
+// Add 实现方法Add
 func (s *demoServer) Add(ctx context.Context, in *demo.TwoNum) (*demo.Response, error) {
+	// use the deadline from ctx
+	var cancel context.CancelFunc
+	if _, ok := ctx.Deadline(); !ok {
+		ctx, cancel = context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+	}
+
 	x := in.X
 	y := in.Y
 
-	cRes := &demo.Response{
-		Result: x + y,
-	}
+	result := x + y
 
-	return cRes, nil
+	return &demo.Response{
+		Result: result,
+	}, nil
 }
 
-// 实现方法SayHello
+// SayHello 实现方法SayHello
 func (s *demoServer) SayHello(ctx context.Context, in *demo.HelloRequest) (*demo.HelloReply, error) {
-	return &demo.HelloReply{Message: "Hello " + in.GetName()}, nil
+	// 1. check nil pointer
+	if in == nil {
+		return nil, fmt.Errorf("HelloRequest is nil")
+	}
+	// 2. check Name field, defense it is nil
+	name := in.GetName()
+	if name == "" {
+		return nil, fmt.Errorf("name is empty")
+	}
+
+	// 3. use the safer string
+	message := "Hello " + name
+
+	return &demo.HelloReply{Message: message}, nil
 }
 
 // 实现方法GetStream
@@ -57,7 +77,7 @@ func (s *demoServer) GetStream(in *demo.TwoNum, pipe demo.Demo_GetStreamServer) 
 	return nil
 }
 
-// 实现方法PutStream
+// PutStream 实现方法PutStream
 func (s *demoServer) PutStream(pipe demo.Demo_PutStreamServer) error {
 	var res int32
 	for { //循环接收
@@ -68,13 +88,18 @@ func (s *demoServer) PutStream(pipe demo.Demo_PutStreamServer) error {
 		if err != nil {
 			log.Println(err.Error())
 		}
+
+		if request == nil {
+			log.Println("Received request is nil")
+			continue
+		}
 		res += request.X //累加
 	}
 	_ = pipe.SendAndClose(&demo.Response{Result: res}) //返回
 	return nil
 }
 
-// 实现方法DoubleStream
+// DoubleStream 实现方法DoubleStream
 func (s *demoServer) DoubleStream(pipe demo.Demo_DoubleStreamServer) error {
 
 	for {
