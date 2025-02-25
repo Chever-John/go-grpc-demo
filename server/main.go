@@ -21,14 +21,19 @@ type demoServer struct {
 	savedResults []*demo.Response //用于服务端流
 }
 
+// contextWithTimeout 封装 Context 超时处理
+func contextWithTimeout(ctx context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
+	if _, ok := ctx.Deadline(); !ok {
+		return context.WithTimeout(ctx, timeout)
+	}
+	return ctx, func() {} // 如果已经有 Deadline，则不创建新的，返回一个空的 CancelFunc
+}
+
 // Add 实现方法Add
 func (s *demoServer) Add(ctx context.Context, in *demo.TwoNum) (*demo.Response, error) {
 	// use the deadline from ctx
-	var cancel context.CancelFunc
-	if _, ok := ctx.Deadline(); !ok {
-		ctx, cancel = context.WithTimeout(ctx, 5*time.Second)
-		defer cancel()
-	}
+	ctx, cancel := contextWithTimeout(ctx, 5*time.Second)
+	defer cancel()
 
 	x := in.X
 	y := in.Y
@@ -42,6 +47,9 @@ func (s *demoServer) Add(ctx context.Context, in *demo.TwoNum) (*demo.Response, 
 
 // SayHello 实现方法SayHello
 func (s *demoServer) SayHello(ctx context.Context, in *demo.HelloRequest) (*demo.HelloReply, error) {
+	ctx, cancel := contextWithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
 	// 1. check nil pointer
 	if in == nil {
 		return nil, fmt.Errorf("HelloRequest is nil")
