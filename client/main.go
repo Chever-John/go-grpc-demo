@@ -66,12 +66,15 @@ func printPutStream(client demo.DemoClient, oneNum []demo.OneNum) {
 	if err != nil {
 		log.Fatalf("error: %v: ", err)
 	}
-	for _, num := range oneNum {
-		if err := putStreamClient.Send(&num); err != nil {
+
+	for i := 0; i < len(oneNum); i++ {
+		if err := putStreamClient.Send(&oneNum[i]); err != nil {
 
 			log.Fatalf("PutStream错误=%v", err)
 		}
+
 	}
+
 	resp, err := putStreamClient.CloseAndRecv()
 	if err != nil {
 		log.Fatalf("接收错误%v", err)
