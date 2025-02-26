@@ -151,8 +151,7 @@ func main() {
 		opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	}
 
-	opts = append(opts, grpc.WithBlock())
-	conn, err := grpc.Dial(*serverAddr, opts...)
+	conn, err := grpc.NewClient(*serverAddr, opts...)
 	if err != nil {
 		log.Fatalf("fail to dial: %v", err)
 	}
@@ -178,16 +177,16 @@ func main() {
 
 	fmt.Printf("#############第4次请求，客户端流模式########\n")
 	res := []demo.OneNum{
-		demo.OneNum{
+		{
 			X: 1,
 		},
-		demo.OneNum{
+		{
 			X: 2,
 		},
-		demo.OneNum{
+		{
 			X: 3,
 		},
-		demo.OneNum{
+		{
 			X: 4,
 		},
 	}
