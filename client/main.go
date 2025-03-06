@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"google.golang.org/grpc/credentials/insecure"
 	"io"
 	"log"
 	"time"
@@ -66,12 +67,15 @@ func printPutStream(client demo.DemoClient, oneNum []demo.OneNum) {
 	if err != nil {
 		log.Fatalf("error: %v: ", err)
 	}
-	for _, num := range oneNum {
-		if err := putStreamClient.Send(&num); err != nil {
+
+	for i := 0; i < len(oneNum); i++ {
+		if err := putStreamClient.Send(&oneNum[i]); err != nil {
 
 			log.Fatalf("PutStream错误=%v", err)
 		}
+
 	}
+
 	resp, err := putStreamClient.CloseAndRecv()
 	if err != nil {
 		log.Fatalf("接收错误%v", err)
@@ -79,7 +83,7 @@ func printPutStream(client demo.DemoClient, oneNum []demo.OneNum) {
 	fmt.Printf("本次返回结果:%v\n", resp.Result)
 }
 
-func printDoubleStream(client demo.DemoClient) {
+func printDoubleStream(client demo.DemoClient) error {
 	// fmt.Printf("请求参数是:x=%v)", oneNum.X)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -118,9 +122,13 @@ func printDoubleStream(client demo.DemoClient) {
 	for k := 0; k < 10; k++ {
 		fmt.Println("双向流： ", <-ch)
 	}
-	doubleStreamClient.CloseSend()
+	err = doubleStreamClient.CloseSend()
+	if err != nil {
+		return fmt.Errorf("doubleStreamClient err: %v", err)
+	}
 	<-ch
 
+	return nil
 }
 
 var (
@@ -140,15 +148,19 @@ func main() {
 		}
 		opts = append(opts, grpc.WithTransportCredentials(creds))
 	} else {
-		opts = append(opts, grpc.WithInsecure())
+		opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	}
 
-	opts = append(opts, grpc.WithBlock())
-	conn, err := grpc.Dial(*serverAddr, opts...)
+	conn, err := grpc.NewClient(*serverAddr, opts...)
 	if err != nil {
 		log.Fatalf("fail to dial: %v", err)
 	}
-	defer conn.Close()
+	defer func(conn *grpc.ClientConn) {
+		err := conn.Close()
+		if err != nil {
+			log.Fatalf("fail to close connection: %v", err)
+		}
+	}(conn)
 	client := demo.NewDemoClient(conn)
 
 	fmt.Printf("#############第1次请求，简单模式########\n")
@@ -165,16 +177,16 @@ func main() {
 
 	fmt.Printf("#############第4次请求，客户端流模式########\n")
 	res := []demo.OneNum{
-		demo.OneNum{
+		{
 			X: 1,
 		},
-		demo.OneNum{
+		{
 			X: 2,
 		},
-		demo.OneNum{
+		{
 			X: 3,
 		},
-		demo.OneNum{
+		{
 			X: 4,
 		},
 	}
@@ -182,6 +194,9 @@ func main() {
 	fmt.Printf("\n\n")
 
 	fmt.Printf("#############第5次请求，双向流模式########\n")
-	printDoubleStream(client)
+	err = printDoubleStream(client)
+	if err != nil {
+		log.Fatalf("%v", err)
+	}
 
 }
