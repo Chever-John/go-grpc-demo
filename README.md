@@ -1,4 +1,4 @@
-# 1. 基于go的grpc的一个demo
+# 基于go的grpc的一个demo
 
 有关grpc协议，可以google搜索下，可以和http协议做对比理解和学习。k8s中大量使用此种协议。
 
@@ -22,7 +22,7 @@ rpc DoubleStream (stream TwoNum) returns (stream Response) {} //每次请求都�
 ```
 
 
-# 2. 目录说明
+## 目录说明
 ## 2.1 data
 注意：这部分代码，对于2.2、2.3是公用的
 
@@ -32,14 +32,24 @@ protobuf 即 Protocol Buffers，是一种轻便高效的结构化数据存储格
 
 grpc中使用此种方案对数据进行序列化、反序列化。
 
-demo.proto即是protobuf的源文件，该文件可以借助protoc工具(https://github.com/protocolbuffers/protobuf/releases) 将其格式化成各种语言的代码，比如go、java、python、js、php等，详情可搜索下相关使用方法。
+demo.proto 即是 protobuf 的源文件，该文件可以借助 [protoc 工具](https://github.com/protocolbuffers/protobuf/releases) 将其格式化成各种语言的代码，比如 go、java、python、js、php 等，详情可搜索下相关使用方法。
+
+生成的命令，先放在前面。
+
+```shell
+# 在文件夹 /data 目录下运行下面命令
+protoc --go_out=paths=source_relative:. \
+       --go-grpc_out=paths=source_relative:. \
+       data/demo.proto
+```
+
 #### 2.1.2 demo.pb.go
 将demo.proto转换成的go代码
 ```bash
 # 安装插件，用于--go_out参数
 go get -u github.com/golang/protobuf/protoc-gen-go
 
-# 生成go代码
+# 然后将目录放在 ./data 文件目录下，运行下面的命令，生成go代码
 protoc --go_out=.  demo.proto 
 # go_out表示格式化成go代码，类似的还有java_out、python_out等
 # go_out=.，最后的.表示生成的文件在当前目录
@@ -65,7 +75,7 @@ server目录，服务端代码，运行方式
 ```bash
 go run server/main.go
 
-#如果使用tls,使用
+# 如果使用tls,使用
 go run server/main.go -tls=true
 
 ```
@@ -78,10 +88,10 @@ client目录，客户端代码，运行方式
 ```bash
 go run client/main.go
 
-#如果使用tls,使用-tls参数
+# 如果使用tls,使用-tls参数
 go run client/main.go -tls=true
 
-#指定服务端地址，使用-server_addr参数
+# 指定服务端地址，使用-server_addr参数
 go run client/main.go -server_addr="localhost:50054"
 
 ```
