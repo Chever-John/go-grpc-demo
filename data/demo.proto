@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-option go_package = ".;demo";
+option go_package = "github.com/Chever-John/go-grpc-demo/data";
 
 package demo;
 
