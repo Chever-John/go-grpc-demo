@@ -1,10 +1,12 @@
 # Golang && gRPC && Demo
 
-有关 grpc 协议，可以 google 搜索下，可以和 http 协议做对比理解和学习。k8s中大量使用此种协议。
+有关 grpc 协议，可以 google 搜索下，可以和 http 协议做对比理解和学习。k8s 中大量使用此种协议。
 
 ## 项目简介
 
 这个 demo 来自于一个 fork，原项目[地址](https://github.com/zlingqu/go-grpc-demo)。
+
+**请注意，在使用这个项目之前，请先通过这个[文档](./pre_confirm.md)以确认自己已经具备所有的基础环境了。**
 
 该示例项目主要就是演示了 grpc 的四种服务方式，分别是
 
@@ -98,7 +100,7 @@ rpc DoubleStream (stream TwoNum) returns (stream Response) {} //每次请求都�
   - 服务器接口定义（需要实现的方法）
   - 客户端桩代码（用于调用远程方法）
 
-#### scripts
+#### scripts(gen proto)
 
 - gen-proto.sh: 自动化脚本，用于将 proto 文件编译为 Go 代码
   - 调用 protoc 编译器及其 gRPC 插件生成上述 .pb.go 文件
@@ -112,7 +114,7 @@ rpc DoubleStream (stream TwoNum) returns (stream Response) {} //每次请求都�
   - **server.crt/server.key**: 服务器证书和密钥
   - **server.csr**: 证书签名请求
 
-#### scripts
+#### scripts(gen certs)
 
 - **gen-certs.sh**: 生成 TLS/SSL 证书的脚本
 
@@ -162,46 +164,51 @@ client/main.go → 使用demo_grpc.pb.go中的客户端代码 → 调用远程�
 
 这种结构遵循了 Go 项目的最佳实践，同时满足了 gRPC 微服务的需要，便于扩展和维护 [4](https://www.reddit.com/r/golang/comments/dfe7ey/how_to_organize_the_structure_of_the_grpc_project/).
 
-## 2.1 data
+## 如何使用这个项目
 
-注意：这部分代码，对于2.2、2.3是公用的
+注意：这部分代码，对于后面的 client 和 server 端的代码是共用的。
 
-#### 2.1.1 demo.proto
-protobuf 即 Protocol Buffers，是一种轻便高效的结构化数据存储格式。可以理解为和json、XML类似和语言无关，对别json、xml等有其自身的优势，详情可google下。
+### demo.proto
 
+protobuf 即 Protocol Buffers，是一种轻便高效的结构化数据存储格式。可以理解为和 json、XML 类似和语言无关，对别 json、xml 等有其自身的优势，详情可 google 下。
 
-grpc中使用此种方案对数据进行序列化、反序列化。
+grpc 中使用此种方案对数据进行序列化、反序列化。
 
-demo.proto即是protobuf的源文件，该文件可以借助protoc工具(https://github.com/protocolbuffers/protobuf/releases) 将其格式化成各种语言的代码，比如go、java、python、js、php等，详情可搜索下相关使用方法。
-#### 2.1.2 demo.pb.go
-将demo.proto转换成的go代码
+demo.proto 即是 protobuf 的源文件，该文件可以借助 [protoc 工具](https://github.com/protocolbuffers/protobuf/releases) 将其格式化成各种语言的代码，比如 go、java、python、js、php 等，详情可搜索下相关使用方法。
+
+### demo.pb.go
+
+将 demo.proto 转换成的 go 代码
+
 ```bash
 # 安装插件，用于--go_out参数
 go get -u github.com/golang/protobuf/protoc-gen-go
 
 # 生成go代码
-protoc --go_out=.  demo.proto 
+protoc --go_out=.  demo.proto
 # go_out表示格式化成go代码，类似的还有java_out、python_out等
 # go_out=.，最后的.表示生成的文件在当前目录
 # demo.proto，表示执行的目标文件，这里使用相对路径，也可以用类似于 /root/abc/*.proto等方式
 # 生成的文件名是固定的, 文件名+.pb+.go
 ```
-#### 2.1.3 demo_grpc.pb.go
 
+### demo_grpc.pb.go
 
-将demo.proto转换成的go grpc需要的相关代码
+将 demo.proto 转换成的 go grpc 需要的相关代码
+
 ```bash
 # 安装插件,用于--go-grpc_out参数
 go install google.golang.org/grpc/cmd/protoc-gen-go-grpc
 # 生成go grpc相关的代码
 protoc --go-grpc_out=. demo.proto
 # 可以和上一步写到一起
-protoc --go_out=. --go-grpc_out=. demo.proto 
+protoc --go_out=. --go-grpc_out=. demo.proto
 ```
 
-## 2.2 server
+### server
 
-server目录，服务端代码，运行方式
+server 目录，服务端代码，运行方式
+
 ```bash
 go run server/main.go
 
@@ -212,9 +219,10 @@ go run server/main.go -tls=true
 
 也可以将服务端跑到容器中，镜像打包见：Dockerfile
 
-## 2.3 client
+### client
 
-client目录，客户端代码，运行方式
+client 目录，客户端代码，运行方式
+
 ```bash
 go run client/main.go
 
@@ -223,9 +231,10 @@ go run client/main.go -tls=true
 
 #指定服务端地址，使用-server_addr参数
 go run client/main.go -server_addr="localhost:50054"
-
 ```
+
 输出内容类似如下
+
 ```bash
 
 #############第1次请求，简单模式########
@@ -269,24 +278,25 @@ go run client/main.go -server_addr="localhost:50054"
 发送数据 9 9
 双向流：  18
 ```
-## 2.3 keys
-相关证书文件。如果不使用tls，这个文件夹无用。
+
+### keys
+
+相关证书文件。如果不使用 tls，这个文件夹无用。
 文件夹的内容，也可以自己生成，参考：[useTls.md](useTls.md)
 
-## 3.3 运行 tls
+## 运行 tls
 
 运行结果如下：
 
 ![image-20250225171111809](assets/image-20250225171111809.png)
 
-# 3 可视化调试工具
+## 可视化调试工具
 
-类似于http的调试工具postman一样，grpc也有可视化工具，见：https://github.com/fullstorydev/grpcui
+类似于 http 的调试工具 postman 一样，grpc 也有可视化工具，见：[grpcui GitHub](https://github.com/fullstorydev/grpcui)
 
 可以直接下载二进制文件后，运行
 
-
-```
+```shell
 grpcui -plaintext 127.0.0.1:50054
 # 127.0.0.1:50054 表示grpc服务的ip和端口
 ```
