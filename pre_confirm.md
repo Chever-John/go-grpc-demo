@@ -220,3 +220,8 @@ EOF
 ```
 
 如果完成上述所有步骤且没有错误，你的Apple芯片Mac上的Golang和gRPC环境已经配置成功，可以开始开发gRPC应用了 [1](https://grpc.io/docs/languages/go/quickstart/)[2](https://abc101.medium.com/golang-grpc-mac-2fe01939a29d).
+
+一切完成之后，你会获得下图
+
+![image-20250307153624133](./assets/image-20250307153624133.png)
+
