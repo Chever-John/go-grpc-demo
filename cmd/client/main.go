@@ -9,7 +9,7 @@ import (
 	"log"
 	"time"
 
-	demo "github.com/Chever-John/go-grpc-demo/data"
+	demo "github.com/Chever-John/go-grpc-demo/pkg/pb/v1"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"

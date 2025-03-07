@@ -4,7 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	demo "github.com/Chever-John/go-grpc-demo/data"
+	demo "github.com/Chever-John/go-grpc-demo/pkg/pb/v1"
 	"io"
 	"log"
 	"net"
@@ -141,7 +141,7 @@ func main() {
 	var opts []grpc.ServerOption
 
 	if *tls {
-		creds, err := credentials.NewServerTLSFromFile("ca/server.crt", "ca/server.key")
+		creds, err := credentials.NewServerTLSFromFile("certs/server/server.crt", "certs/server/server.key")
 		if err != nil {
 			log.Fatalf("Failed to generate credentials %v", err)
 		}
