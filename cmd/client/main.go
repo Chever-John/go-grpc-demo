@@ -9,7 +9,7 @@ import (
 	"log"
 	"time"
 
-	demo "github.com/Chever-John/go-grpc-demo/data"
+	demo "github.com/Chever-John/go-grpc-demo/pkg/pb/v1"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -142,7 +142,7 @@ func main() {
 	var opts []grpc.DialOption
 
 	if *tls {
-		creds, err := credentials.NewClientTLSFromFile("certs/ca/ca.crt", *serverHostOverride)
+		creds, err := credentials.NewClientTLSFromFile("ca/ca.crt", *serverHostOverride)
 		if err != nil {
 			log.Fatalf("Failed to generate credentials %v", err)
 		}
