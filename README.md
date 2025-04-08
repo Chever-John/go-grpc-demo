@@ -300,3 +300,21 @@ go run client/main.go -server_addr="localhost:50054"
 grpcui -plaintext 127.0.0.1:50054
 # 127.0.0.1:50054 表示grpc服务的ip和端口
 ```
+
+注意，我写了一个脚本在 ./scripts/test_grpc.sh，这个脚本专门用于测试这个 grpc_server。
+
+也需要额外注意的是，我的 grpc 开放的端口为 50054，而不是 50051（grpc 默认端口）。
+
+此外，我还整了个 Dockerfile 优化。只需要执行命令：
+
+```shell
+docker build -t cheverjohn/go-grpc-demo:v0.1 .
+```
+即可构建出一个 grpc_server image。然后运行下面命令启动这个 image：
+
+```shell
+docker run -d -p 50051:50051 --name grpc-server cheverjohn/go-grpc-demo:v0.1
+```
+然后再执行我的 ./scripts/test_grpc.sh，就可以完美地测试好这个 server。
+
+
