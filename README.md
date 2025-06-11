@@ -317,4 +317,148 @@ docker run -d -p 50051:50051 --name grpc-server cheverjohn/go-grpc-demo:v0.1
 ```
 然后再执行我的 ./scripts/test_grpc.sh，就可以完美地测试好这个 server。
 
+## 验证
+
+我遇到一个报错 `Unavailable desc = connection error: desc = \"error reading server preface: http2: frame too large\"`
+
+我想我需要搞清楚，什么情况下会出现这种错误。所以我额外补充了 三个参数，用于尝试复现这个问题：
+
+```go
+	testLargeData = flag.Bool("test_large_data", false, "是否测试大型数据传输")
+	dataSize      = flag.Int("data_size", 20, "测试数据大小，单位KB（默认20KB，超过HTTP/2默认16KB限制）")
+	setLargeLimit = flag.Bool("set_large_limit", false, "是否设置较大的消息大小限制")
+```
+
+运行方法是，在终端运行 client 命令如下：
+
+```shell
+└─[$]> go run ./cmd/client/main.go --test_large_data --data_size=4096
+################## 测试大型数据传输（4096KB） ##################
+Send large data, and the  size KB is 4096
+2025/06/11 17:15:34 SendLargeData err: rpc error: code = ResourceExhausted desc = grpc: received message larger than max (4194309 vs. 4194304)
+复现了问题！！！%    
+```
+
+但是这个还不是我想要的报错。
+
+继续探索，使用 nginx 进行代理。
+
+### 使用 nginx 代理（在 MacOS 上）
+
+使用 homebrew 安装。
+
+命令如下：
+
+```shell
+brew update
+brew install nginx
+```
+
+获得 nginx 的 配置文件位置
+
+```shell
+cheverjohn•etc/nginx/logsgit:(stable)» whereis nginx                                                                                                                                             [17:30:28]
+nginx: /opt/homebrew/bin/nginx /opt/homebrew/share/man/man8/nginx.8
+cheverjohn•etc/nginx/logsgit:(stable)» cd /opt/homebrew/etc/nginx                                                                                                                                [17:35:45]
+cheverjohn•homebrew/etc/nginxgit:(stable)» ls                                                                                                                                                    [17:35:54]
+conf.d                 fastcgi.conf           koi-win                mime.types.default     scgi_params            uwsgi_params
+fastcgi_params         fastcgi.conf.default   logs                   nginx.conf             scgi_params.default    uwsgi_params.default
+fastcgi_params.default koi-utf                mime.types             nginx.conf.default     servers                win-utf
+
+```
+
+创建配置为了我的 grpc-server：
+
+```shell
+mkdir conf.d
+```
+
+然后放置一个 conf，内容如下：
+
+```yaml
+server {
+    listen 443 ssl http2;
+    server_name hello-grpc.cheverjohn.me;
+
+    # SSL 配置
+    ssl_certificate /Users/cheverjohn/nginx-certs/cert.pem;
+    ssl_certificate_key /Users/cheverjohn/nginx-certs/key.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    
+    # 设置极小的 HTTP/2 帧大小限制以复现错误
+    # 默认情况下这些限制会更大
+    http2_max_field_size 4k;     # 默认是4k，设置更小可能更容易触发错误
+    http2_max_header_size 8k;    # 默认是16k
+    http2_max_requests 10;       # 每个连接的最大请求数，默认是1000
+    
+    # 更多触发"frame too large"错误的配置
+    large_client_header_buffers 2 1k;  # 减小头部缓冲区大小
+    client_header_buffer_size 1k;      # 默认客户端请求头缓冲区
+    
+    # gRPC 代理配置
+    location / {
+        grpc_pass grpc://127.0.0.1:50054;
+        
+        # gRPC 特定配置
+        grpc_set_header Host $host;
+        grpc_set_header X-Real-IP $remote_addr;
+        
+        # 额外响应头(可选)
+        add_header X-Proxy-By "Nginx";
+        
+        # 错误处理
+        error_page 502 = /error502grpc;
+    }
+    
+    location = /error502grpc {
+        internal;
+        default_type application/grpc;
+        add_header grpc-status 14;
+        add_header grpc-message "无法连接到后端服务";
+        return 204;
+    }
+}
+```
+
+然后 测试 nginx 配置：
+
+```shell
+cheverjohn•homebrew/etc/nginxgit:(stable)» nginx -t                                                                                                                                              [17:35:56]
+nginx: [warn] the "listen ... http2" directive is deprecated, use the "http2" directive instead in /opt/homebrew/etc/nginx/conf.d/grpc.conf:2
+nginx: [warn] the "http2_max_field_size" directive is obsolete, use the "large_client_header_buffers" directive instead in /opt/homebrew/etc/nginx/conf.d/grpc.conf:12
+nginx: [warn] the "http2_max_header_size" directive is obsolete, use the "large_client_header_buffers" directive instead in /opt/homebrew/etc/nginx/conf.d/grpc.conf:13
+nginx: [warn] the "http2_max_requests" directive is obsolete, use the "keepalive_requests" directive instead in /opt/homebrew/etc/nginx/conf.d/grpc.conf:14
+nginx: the configuration file /opt/homebrew/etc/nginx/nginx.conf syntax is ok
+nginx: [emerg] open() "/opt/homebrew/Cellar/nginx/1.27.5/logs/error.log" failed (2: No such file or directory)
+nginx: configuration file /opt/homebrew/etc/nginx/nginx.conf test failed
+
+```
+
+
+
+然后 启动 nginx
+
+```shell
+brew services start nginx
+```
+
+即可。
+
+这个时候根据我的 server 的启动参数，依次改动这个 grpc.conf 即可。
+
+### 成功复现
+
+然后就可以运行我的 client 复现问题了。
+
+```shell
+└─[$]> go run ./cmd/client/main.go 
+#############第1次请求，简单模式########
+普通模式，请求参数是x=10,y=10
+2025/06/11 17:33:01 &{0x14000242008}.GetFeatures(_) = _, rpc error: code = Unavailable desc = connection error: desc = "error reading server preface: http2: frame too large": 
+exit status 1
+┌─[cheverjohn@SHLP24060721] - [~/Workspace/github.com/Chever-John/go-grpc-demo] - [Wed Jun 11, 17:33]
+└─[$]> 
+```
+
+
 

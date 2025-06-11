@@ -131,10 +131,40 @@ func printDoubleStream(client demo.DemoClient) error {
 	return nil
 }
 
+// test large data transport
+func sendLargeData(client demo.DemoClient, sizeKB int) {
+	fmt.Printf("Send large data, and the  size KB is %d\n", sizeKB)
+
+	payload := make([]byte, sizeKB*1024)
+	for i := range payload {
+		payload[i] = byte(i % 256)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	// send large data request
+	rsp, err := client.SendLargeData(ctx, &demo.LargeRequest{
+		LargePayload: payload,
+	})
+
+	if err != nil {
+		log.Printf("SendLargeData err: %v", err)
+		fmt.Printf("复现了问题！！！")
+	} else {
+		fmt.Printf("resp successfully: status=%s, and the server side received data size=%d bytes\n",
+			rsp.Status, rsp.PayloadSize)
+	}
+}
+
 var (
 	tls                = flag.Bool("tls", false, "是否使用tls")
-	serverAddr         = flag.String("server_addr", "localhost:50054", "服务端地址，格式： host:port")
+	serverAddr         = flag.String("server_addr", "hello-grpc.cheverjohn.me:443", "服务端地址，格式： host:port")
 	serverHostOverride = flag.String("server_host_override", "a.grpc.test.com", "验证TLS握手返回的主机名的服务器名称。需要和服务端证书中dns段落匹配")
+
+	testLargeData = flag.Bool("test_large_data", false, "是否测试大型数据传输")
+	dataSize      = flag.Int("data_size", 20, "测试数据大小，单位KB（默认20KB，超过HTTP/2默认16KB限制）")
+	setLargeLimit = flag.Bool("set_large_limit", false, "是否设置较大的消息大小限制")
 )
 
 func main() {
@@ -151,17 +181,35 @@ func main() {
 		opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	}
 
-	conn, err := grpc.NewClient(*serverAddr, opts...)
+	if *setLargeLimit {
+		opts = append(opts, grpc.WithDefaultCallOptions(
+			grpc.MaxCallRecvMsgSize(100*1024*1024),
+			grpc.MaxCallSendMsgSize(100*1024*1024),
+		),
+		)
+
+		log.Printf("已设置了较大的消息大小限制(100MB)")
+	}
+
+	conn, err := grpc.Dial(*serverAddr, opts...)
 	if err != nil {
 		log.Fatalf("fail to dial: %v", err)
 	}
+
 	defer func(conn *grpc.ClientConn) {
 		err := conn.Close()
 		if err != nil {
-			log.Fatalf("fail to close connection: %v", err)
+			log.Fatalf("fail to close conn: %v", err)
 		}
 	}(conn)
+
 	client := demo.NewDemoClient(conn)
+
+	if *testLargeData {
+		fmt.Printf("################## 测试大型数据传输（%dKB） ##################\n", *dataSize)
+		sendLargeData(client, *dataSize)
+		return
+	}
 
 	fmt.Printf("#############第1次请求，简单模式########\n")
 	printAddResult(client, &demo.TwoNum{X: 10, Y: 2})

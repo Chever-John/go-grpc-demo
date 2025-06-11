@@ -27,6 +27,16 @@ message HelloReply {
   string message = 1;
 }
 
+// LargeRequest 用于测试大型消息帧
+message LargeRequest {
+  bytes large_payload = 1; // 大型数据 payload
+}
+
+// LargeResponse
+message LargeResponse {
+  string status = 1;
+  int32 payload_size = 2; // 返回接收到的 payload 大小
+}
 
 // 定义服务
 service Demo {
@@ -42,4 +52,7 @@ service Demo {
 
   //双向流，发送和接收同时进行，互不干扰
   rpc DoubleStream (stream TwoNum) returns (stream Response) {} //每次请求都返回两个数字之和
+
+  // SendLargeData frame too large error
+  rpc SendLargeData (LargeRequest) returns (LargeResponse) {}
 }

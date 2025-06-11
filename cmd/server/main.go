@@ -126,9 +126,21 @@ func (s *demoServer) DoubleStream(pipe demo.Demo_DoubleStreamServer) error {
 
 }
 
+// SendLargeData 处理大型数据请求，可能会触发 frame too large 错误
+func (s *demoServer) SendLargeData(ctx context.Context, req *demo.LargeRequest) (*demo.LargeResponse, error) {
+	payloadSize := len(req.LargePayload)
+	log.Printf("Received large payload request, and the length of it is %d", payloadSize)
+
+	return &demo.LargeResponse{
+		Status:      "Have received data",
+		PayloadSize: int32(payloadSize),
+	}, nil
+}
+
 var (
-	tls  = flag.Bool("tls", false, "使用启用tls") //默认false
-	port = flag.Int("port", 50054, "服务端口")    //默认50054
+	tls        = flag.Bool("tls", false, "使用启用tls") //默认false
+	port       = flag.Int("port", 50054, "服务端口")    //默认50054
+	maxMsgSize = flag.Int("max_msg_size", 4*1024*1024, "Max message size(bytes)")
 )
 
 func main() {
@@ -148,10 +160,15 @@ func main() {
 		opts = []grpc.ServerOption{grpc.Creds(creds)}
 	}
 
+	// 默认不设置较大的消息大小，方便复现错误
+	// 如果要修复错误，可以取消下面两行的注释
+	// opts = append(opts, grpc.MaxRecvMsgSize(*maxMsgSize))
+	// opts = append(opts, grpc.MaxSendMsgSize(*maxMsgSize))
+
 	s := grpc.NewServer(opts...)
 	demo.RegisterDemoServer(s, &demoServer{})
 	reflection.Register(s)
-	log.Printf("Server listeing at :%v\n", *port)
+	log.Printf("Server listeing at :%v, Max message: %v bytes\n", *port, *maxMsgSize)
 	if err := s.Serve(lis); err != nil {
 		log.Fatalln(err)
 	}
